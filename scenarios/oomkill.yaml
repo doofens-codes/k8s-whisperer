@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oomkill-demo
+  namespace: default
+spec:
+  containers:
+  - name: memory-hog
+    image: python:3.11
+    command: ["python", "-c", "x = ' ' * 10**9"]
+    resources:
+      limits:
+        memory: "64Mi"

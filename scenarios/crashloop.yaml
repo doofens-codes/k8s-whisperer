@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crashloop-demo
+  namespace: default
+spec:
+  containers:
+  - name: crasher
+    image: busybox
+    command: ["sh", "-c", "exit 1"]
