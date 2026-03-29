@@ -1,5 +1,5 @@
 langgraph
 langchain
-langchain-google-genai
-google-generativeai
 python-dotenv
+requests
+groq

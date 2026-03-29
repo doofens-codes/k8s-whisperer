@@ -1,12 +1,10 @@
 import os
-from google import genai
 from state import ClusterState
 from kubectl_tools import get_pod_logs, describe_pod
 from dotenv import load_dotenv
+from ai_client import client
 
 load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 PROMPT = """
 You are a Kubernetes SRE performing root cause analysis.
@@ -51,11 +49,7 @@ def diagnose_node(state: ClusterState) -> dict:
         logs=logs
     )
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    
-    diagnosis = response.text.strip()
+    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
+    diagnosis = response.strip()
     print(f"[DIAGNOSE] {diagnosis[:120]}...")
     return {"diagnosis": diagnosis}

@@ -1,12 +1,10 @@
 import json
 import os
-from google import genai
 from state import ClusterState
 from dotenv import load_dotenv
+from ai_client import client
 
 load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 PROMPT = """
 You are a Kubernetes anomaly detection expert.
@@ -42,12 +40,8 @@ def detect_node(state: ClusterState) -> dict:
     events_str = json.dumps(state["events"], indent=2)
     prompt = PROMPT.format(state=events_str)
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    
-    raw = response.text.strip()
+    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
+    raw = response.strip()
     
     # Strip markdown if model adds it
     if "```" in raw:

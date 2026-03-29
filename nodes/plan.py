@@ -1,12 +1,10 @@
 import json
 import os
-from google import genai
 from state import ClusterState
 from dotenv import load_dotenv
+from ai_client import client
 
 load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 PROMPT = """
 You are a Kubernetes remediation planner.
@@ -56,12 +54,8 @@ def plan_node(state: ClusterState) -> dict:
         diagnosis=state["diagnosis"]
     )
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    
-    raw = response.text.strip()
+    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
+    raw = response.strip()
     if "```" in raw:
         raw = raw.split("```")[1]
         if raw.startswith("json"):
