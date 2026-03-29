@@ -28,6 +28,9 @@ Maximum 100 words. No bullet points. No markdown.
 
 
 def diagnose_node(state: ClusterState) -> dict:
+    if not state["anomalies"]:
+        return {"diagnosis": "No anomalies detected"}
+    
     print("[DIAGNOSE] Analyzing root cause...")
     
     if not state["anomalies"]:

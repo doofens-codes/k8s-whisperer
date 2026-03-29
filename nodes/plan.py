@@ -38,6 +38,9 @@ Return ONLY valid JSON. No markdown. No explanation.
 
 
 def plan_node(state: ClusterState) -> dict:
+    if not state["anomalies"]:
+        return {"plan": None}   
+    
     print("[PLAN] Generating remediation plan...")
     
     if not state["anomalies"]:
