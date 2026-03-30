@@ -60,3 +60,22 @@ def build_graph():
 
 
 graph = build_graph()
+
+
+def make_initial_state(thread_id: str = "k8s-whisperer-1", cycle: int = 1) -> dict:
+    """
+    Returns a clean initial ClusterState for each agent cycle.
+    Centralises default values so main.py and tests stay in sync with state.py.
+    """
+    return {
+        "events": [],
+        "anomalies": [],
+        "diagnosis": "",
+        "plan": None,
+        "approved": True,
+        "result": "",
+        "audit_log": [],
+        "thread_id": thread_id,
+        "node_states": [],
+        "cycle_number": cycle,
+    }

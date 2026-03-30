@@ -1,69 +1,101 @@
 import json
-import os
 from state import ClusterState
 from dotenv import load_dotenv
 from ai_client import client
 
 load_dotenv()
 
-PROMPT = """
-You are a Kubernetes remediation planner.
+SYSTEM = """You are a Kubernetes remediation planner.
+You reason carefully about the safest, most effective action to resolve an incident.
+You consider blast radius — how many workloads could be disrupted — and always prefer the least invasive action that will actually fix the problem.
+You never recommend deleting namespaces, draining nodes, or any action that would cause broad service disruption unless absolutely necessary."""
 
-Anomaly: {anomaly_type}
+PROMPT = """Plan a remediation action for the following Kubernetes incident.
+
+Anomaly type: {anomaly_type}
 Severity: {severity}
-Pod: {pod_name}
+Affected pod: {pod_name}
 Namespace: {namespace}
-Root cause: {diagnosis}
 
-Propose a remediation action. Return ONLY valid JSON with these fields:
-- action: MUST be exactly one of these strings: restart_pod, patch + 50% memory, delete_evicted, describe_pending, alert_human
-- No other values allowed. No spaces, no plus signs, no variations.
-- target: pod name
-- namespace: namespace
-- params: dict (e.g. {{"new_memory_limit": "128Mi"}} or {{}})
-- confidence: float 0.0 to 1.0
-- blast_radius: one of [low, medium, high]
+Root cause analysis:
+{diagnosis}
 
-Rules:
-- CrashLoopBackOff → restart_pod, blast_radius low, confidence 0.9
-- OOMKilled → patch + 50% memory, restart_pod,  blast_radius medium, confidence 0.85
-- Pending → describe_pending, blast_radius low, confidence 0.9
-- Evicted → delete_evicted, blast_radius low, confidence 0.95
-- NodeNotReady → alert_human, blast_radius high, confidence 0.7
-- DeploymentStalled → alert_human, blast_radius high, confidence 0.7
+Available actions and when to use them:
+- restart_pod: delete the pod so it restarts fresh. Use for CrashLoopBackOff, transient errors, config reloads.
+- patch_memory: increase the deployment's memory limit by 50%. Use for OOMKilled pods.
+- delete_evicted: delete an evicted pod to clean up. Use for Evicted pods.
+- describe_pending: gather describe output to understand scheduling failure. Use for Pending pods.
+- alert_human: escalate to a human. Use for NodeNotReady, DeploymentStalled, or anything requiring judgment beyond pod-level operations.
 
-Return ONLY valid JSON. No markdown. No explanation.
-"""
+Think through:
+1. What action will actually fix this based on the root cause?
+2. What is the blast radius — will this affect other pods, services, or users?
+3. How confident are you this will resolve the issue?
+
+Return ONLY valid JSON with these exact fields:
+{{
+  "action": one of [restart_pod, patch_memory, delete_evicted, describe_pending, alert_human],
+  "target": "{pod_name}",
+  "namespace": "{namespace}",
+  "params": {{}},
+  "confidence": float 0.0–1.0,
+  "blast_radius": one of [low, medium, high],
+  "reasoning": "one sentence explaining why you chose this action"
+}}
+
+No markdown. No explanation outside the JSON."""
 
 
 def plan_node(state: ClusterState) -> dict:
-    print("[PLAN] Generating remediation plan...")
-    
+    print("[PLAN] Reasoning about remediation...")
+
     if not state["anomalies"]:
         return {"plan": None}
-    
+
     anomaly = state["anomalies"][0]
-    
+
     prompt = PROMPT.format(
-        anomaly_type=anomaly["type"],
-        severity=anomaly["severity"],
-        pod_name=anomaly["affected_resource"],
-        namespace=anomaly["namespace"],
-        diagnosis=state["diagnosis"]
+        anomaly_type=anomaly.get("type", "Unknown"),
+        severity=anomaly.get("severity", "UNKNOWN"),
+        pod_name=anomaly.get("affected_resource", ""),
+        namespace=anomaly.get("namespace", "default"),
+        diagnosis=state.get("diagnosis", "No diagnosis available.")
     )
-    
-    raw = client.generate(prompt)
-    
+
+    raw = client.generate(prompt, system=SYSTEM)
+
+    # Strip markdown fences
     if "```" in raw:
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+        parts = raw.split("```")
+        for part in parts:
+            part = part.strip()
+            if part.startswith("json"):
+                part = part[4:].strip()
+            if part.startswith("{"):
+                raw = part
+                break
+
     raw = raw.strip()
-    
+
+    # Extract just the JSON object if there's surrounding text
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    if start != -1 and end > start:
+        raw = raw[start:end]
+
     try:
         plan = json.loads(raw)
-        print(f"[PLAN] Action: {plan['action']} | Blast: {plan['blast_radius']} | Confidence: {plan['confidence']}")
+
+        # Normalise action field — handle legacy "patch + 50% memory" style
+        action = plan.get("action", "")
+        if "patch" in action.lower() and "memory" in action.lower():
+            plan["action"] = "patch_memory"
+
+        print(f"[PLAN] Action: {plan['action']} | Blast: {plan['blast_radius']} | "
+              f"Confidence: {plan['confidence']}")
+        print(f"[PLAN] Reasoning: {plan.get('reasoning', 'none')}")
         return {"plan": plan}
+
     except Exception as e:
-        print(f"[PLAN] Parse error: {e}")
+        print(f"[PLAN] Parse error: {e} | Raw: {raw[:300]}")
         return {"plan": None}

@@ -9,7 +9,7 @@ load_dotenv()
 class AIClient:
     """
     Groq-based LLM client.
-    Maintains same interface as before for zero refactor in nodes.
+    Supports system prompts for proper role-based reasoning.
     """
 
     def __init__(
@@ -23,24 +23,30 @@ class AIClient:
 
         self.client = Groq(api_key=self.api_key)
         self.default_model = default_model or os.getenv(
-            "GROQ_MODEL", "llama3-70b-8192"
+            "GROQ_MODEL", "llama-3.1-8b-instant"
         )
 
     def generate(
         self,
         prompt: str,
+        system: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: int = 60  # kept for compatibility, unused
+        temperature: float = 0.2,
+        timeout: int = 60  # kept for compatibility
     ) -> str:
+        messages = []
+
+        if system:
+            messages.append({"role": "system", "content": system})
+
+        messages.append({"role": "user", "content": prompt})
+
         try:
             response = self.client.chat.completions.create(
                 model=model or self.default_model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2  # low for deterministic infra reasoning
+                messages=messages,
+                temperature=temperature
             )
-
             return response.choices[0].message.content.strip()
 
         except Exception as e:
