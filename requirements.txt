@@ -3,3 +3,8 @@ langchain
 python-dotenv
 requests
 groq
+fastapi
+uvicorn
+slack_sdk
+python-multipart
+

@@ -20,21 +20,22 @@ Namespace: {namespace}
 Root cause analysis:
 {diagnosis}
 
-Available actions and when to use them:
-- restart_pod: delete the pod so it restarts fresh. Use for CrashLoopBackOff, transient errors, config reloads.
-- patch_memory: increase the deployment's memory limit by 50%. Use for OOMKilled pods.
-- delete_evicted: delete an evicted pod to clean up. Use for Evicted pods.
-- describe_pending: gather describe output to understand scheduling failure. Use for Pending pods.
-- alert_human: escalate to a human. Use for NodeNotReady, DeploymentStalled, or anything requiring judgment beyond pod-level operations.
+OFFICIAL ANOMALY -> ACTION MAPPING (STRICTLY REQUIRED):
+1. CrashLoopBackOff: You MUST output "action": "restart_pod", "confidence": >0.8, "blast_radius": "low"
+2. OOMKilled: You MUST output "action": "patch_memory", "confidence": >0.8, "blast_radius": "low"
+3. Pending: You MUST output "action": "alert_human", "confidence": 0.5
+4. ImagePullBackOff or ErrImagePull: You MUST output "action": "alert_human", "confidence": 0.5
+5. Evicted: You MUST output "action": "delete_evicted", "confidence": >0.8, "blast_radius": "low"
+6. Deployment Stalled: You MUST output "action": "alert_human", "confidence": 0.5
+7. NodeNotReady: You MUST output "action": "alert_human", "confidence": 0.5
 
-Think through:
-1. What action will actually fix this based on the root cause?
-2. What is the blast radius — will this affect other pods, services, or users?
-3. How confident are you this will resolve the issue?
+GLOBAL SAFETY RULES:
+- If action is "alert_human", you MUST set confidence < 0.8 (e.g. 0.5) to ensure it triggers HITL routing.
+- Auto-execute only happens if confidence > 0.8 and blast_radius is "low".
 
 Return ONLY valid JSON with these exact fields:
 {{
-  "action": one of [restart_pod, patch_memory, delete_evicted, describe_pending, alert_human],
+  "action": one of [restart_pod, patch_memory, delete_evicted, alert_human],
   "target": "{pod_name}",
   "namespace": "{namespace}",
   "params": {{}},

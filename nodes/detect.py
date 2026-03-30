@@ -19,12 +19,12 @@ For each anomaly return a JSON object with:
 - reasoning: one sentence citing the specific field that triggered this
 
 Rules:
-- CrashLoopBackOff: waiting_reason=CrashLoopBackOff OR restart_count>3
-- OOMKilled: terminated_reason=OOMKilled AND phase!=Running
-- Pending: phase=Pending
-- ImagePullBackOff: waiting_reason=ImagePullBackOff or ErrImagePull
-- Evicted: reason=Evicted
-- NodeNotReady: node ready=False
+- CrashLoopBackOff: waiting_reason=CrashLoopBackOff OR restart_count>3. Strict Severity: HIGH.
+- OOMKilled: terminated_reason=OOMKilled AND phase!=Running. Strict Severity: HIGH.
+- Pending: phase=Pending. Strict Severity: MED.
+- ImagePullBackOff: waiting_reason=ImagePullBackOff or ErrImagePull. Strict Severity: MED.
+- Evicted: reason=Evicted. Strict Severity: LOW.
+- NodeNotReady: node ready=False. Strict Severity: CRITICAL.
 - If same pod has both OOMKilled and CrashLoopBackOff signals → report OOMKilled only
 - One entry per pod/node max. Skip kube-system namespace. Return [] if healthy.
 

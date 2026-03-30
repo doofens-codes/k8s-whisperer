@@ -306,27 +306,14 @@ def patch_memory(namespace: str, pod_name: str, new_limit: str) -> str:
 
     print(f"[KUBECTL] Patching deployment '{deploy_name}' container '{container_name}' → {new_limit}")
 
-    patch = json.dumps({
-        "spec": {
-            "template": {
-                "spec": {
-                    "containers": [{
-                        "name": container_name,
-                        "resources": {
-                            "limits": {"memory": new_limit},
-                            "requests": {"memory": new_limit}
-                        }
-                    }]
-                }
-            }
-        }
-    })
-
     rc, stdout, stderr = _run([
-        "kubectl", "patch", "deployment", deploy_name,
-        "-n", namespace, "--type", "merge", "-p", patch
+        "kubectl", "set", "resources", "deployment", deploy_name,
+        f"-c={container_name}",
+        f"--limits=memory={new_limit}",
+        f"--requests=memory={new_limit}",
+        "-n", namespace
     ])
-    return stdout or stderr or f"deployment.apps/{deploy_name} patched → {new_limit}"
+    return stdout or stderr or f"deployment.apps/{deploy_name} resource requirements updated to {new_limit}"
 
 
 def verify_pod(namespace: str, pod_name: str) -> str:
