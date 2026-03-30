@@ -16,7 +16,8 @@ Namespace: {namespace}
 Root cause: {diagnosis}
 
 Propose a remediation action. Return ONLY valid JSON with these fields:
-- action: one of [restart_pod, patch_memory, delete_evicted, describe_pending, alert_human]
+- action: MUST be exactly one of these strings: restart_pod, patch + 50% memory, delete_evicted, describe_pending, alert_human
+- No other values allowed. No spaces, no plus signs, no variations.
 - target: pod name
 - namespace: namespace
 - params: dict (e.g. {{"new_memory_limit": "128Mi"}} or {{}})
@@ -25,7 +26,7 @@ Propose a remediation action. Return ONLY valid JSON with these fields:
 
 Rules:
 - CrashLoopBackOff → restart_pod, blast_radius low, confidence 0.9
-- OOMKilled → patch_memory, blast_radius medium, confidence 0.85
+- OOMKilled → patch + 50% memory, restart_pod,  blast_radius medium, confidence 0.85
 - Pending → describe_pending, blast_radius low, confidence 0.9
 - Evicted → delete_evicted, blast_radius low, confidence 0.95
 - NodeNotReady → alert_human, blast_radius high, confidence 0.7
@@ -36,9 +37,6 @@ Return ONLY valid JSON. No markdown. No explanation.
 
 
 def plan_node(state: ClusterState) -> dict:
-    if not state["anomalies"]:
-        return {"plan": None}   
-    
     print("[PLAN] Generating remediation plan...")
     
     if not state["anomalies"]:
@@ -54,8 +52,8 @@ def plan_node(state: ClusterState) -> dict:
         diagnosis=state["diagnosis"]
     )
     
-    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
-    raw = response.strip()
+    raw = client.generate(prompt)
+    
     if "```" in raw:
         raw = raw.split("```")[1]
         if raw.startswith("json"):

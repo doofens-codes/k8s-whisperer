@@ -34,8 +34,7 @@ def explain_node(state: ClusterState) -> dict:
         result=state.get("result", "none")
     )
     
-    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
-    explanation = response.strip()
+    explanation = client.generate(prompt)
     
     entry = {
         "timestamp": datetime.utcnow().isoformat(),
@@ -62,7 +61,6 @@ def explain_node(state: ClusterState) -> dict:
         json.dump(log, f, indent=2)
     
     print(f"[EXPLAIN] {explanation[:120]}")
-    
     audit_log = state.get("audit_log", [])
     audit_log.append(entry)
     return {"audit_log": audit_log}

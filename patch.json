@@ -1,0 +1,18 @@
+{
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "memory-hog",
+            "image": "python:3.13",
+            "resources": {
+              "limits": { "memory": "96Mi" },
+              "requests": { "memory": "96Mi" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

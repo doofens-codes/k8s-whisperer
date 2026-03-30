@@ -27,6 +27,14 @@ while True:
     try:
         result = graph.invoke(initial_state, config=config)
 
+        print("\n--- FULL AGENT OUTPUT ---")
+        print("ANOMALIES:", result.get("anomalies"))
+        print("DIAGNOSIS:", result.get("diagnosis"))
+        print("PLAN:", result.get("plan"))
+        print("APPROVED:", result.get("approved"))
+        print("RESULT:", result.get("result"))
+        print("--- END ---\n")
+        
         if result.get("anomalies"):
             print(f"\nCycle complete. Anomalies handled: {len(result['anomalies'])}")
         else:

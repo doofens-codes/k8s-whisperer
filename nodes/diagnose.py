@@ -26,9 +26,6 @@ Maximum 100 words. No bullet points. No markdown.
 
 
 def diagnose_node(state: ClusterState) -> dict:
-    if not state["anomalies"]:
-        return {"diagnosis": "No anomalies detected"}
-    
     print("[DIAGNOSE] Analyzing root cause...")
     
     if not state["anomalies"]:
@@ -49,7 +46,6 @@ def diagnose_node(state: ClusterState) -> dict:
         logs=logs
     )
     
-    response = client.generate(prompt, model=os.getenv("LLAMA_MODEL", "llama-3.3-70b-versatile"))
-    diagnosis = response.strip()
+    diagnosis = client.generate(prompt)
     print(f"[DIAGNOSE] {diagnosis[:120]}...")
     return {"diagnosis": diagnosis}

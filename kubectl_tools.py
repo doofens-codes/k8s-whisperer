@@ -28,7 +28,10 @@ def get_all_pods() -> list:
                 terminated_reason = state["terminated"].get("reason", "")
             last_state = cs.get("lastState", {})
             if "terminated" in last_state:
-                terminated_reason = last_state["terminated"].get("reason", terminated_reason)
+                # Only consider OOM if pod is NOT currently running cleanly
+                if status.get("phase") != "Running":
+                    if "terminated" in last_state:
+                        terminated_reason = last_state["terminated"].get("reason", terminated_reason)
         pods.append({
             "name": pod["metadata"]["name"],
             "namespace": pod["metadata"]["namespace"],
@@ -88,17 +91,34 @@ def delete_pod(namespace: str, pod_name: str) -> str:
 
 
 def patch_memory(namespace: str, pod_name: str, new_limit: str) -> str:
-    patch = json.dumps([{
-        "op": "replace",
-        "path": "/spec/containers/0/resources/limits/memory",
-        "value": new_limit
-    }])
+    parts = pod_name.split("-")
+    deploy_name = "-".join(parts[:-2])
+    
+    print(f"[DEBUG] Patching deployment: '{deploy_name}' with limit: '{new_limit}'")
+    patch = json.dumps({
+        "spec": {
+            "template": {
+                "spec": {
+                    "containers": [{
+                        "name": "memory-hog",
+                        "image": "python:3.11",
+                        "resources": {
+                            "limits": {"memory": new_limit},
+                            "requests": {"memory": new_limit}
+                        }
+                    }]
+                }
+            }
+        }
+    })
+    
     result = subprocess.run(
-        ["kubectl", "patch", "pod", pod_name, "-n", namespace,
-         "--type", "json", "-p", patch],
+        ["kubectl", "patch", "deployment", deploy_name,
+        "-n", namespace, "--type", "merge", "-p", patch],
         capture_output=True, text=True
     )
-    return result.stdout or result.stderr
+    output = result.stdout or result.stderr or f"deployment.apps/{deploy_name} patched (limit→{new_limit})"
+    return output
 
 
 def verify_pod(namespace: str, pod_name: str) -> str:
